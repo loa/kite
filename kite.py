@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-import ConfigParser, os, sys
+import ConfigParser, os, sys, subprocess, glob
 import requests, hmac, base64, hashlib
-import pprint
 
 class Kite:
   host = None
@@ -72,8 +71,15 @@ class Kite:
 
     return None
 
-  def trigger_hooks(self, hook):
-    pass
+  def trigger_hooks(self, hook, params = {}):
+    hooks_dir = "%s/hooks/" % os.path.dirname(__file__)
+
+    # Get all files with current hook as a prefix from the hook directory
+    for file in glob.glob("%s%s-*" % (hooks_dir, hook)):
+      print "Trigger: %s" % file
+
+      # Run hook with job vars as env variables
+      subprocess.call([file], env=params, shell=True, executable="/bin/bash")
 
 if __name__ == "__main__":
   Kite()
