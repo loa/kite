@@ -1,0 +1,5 @@
+[Cloudstack]
+host=cloudstack.internal.machines
+port=8080
+apikey=123QWEASD
+secretkey=123QWEASD
