@@ -17,7 +17,7 @@ class Kite:
   def read_config(self):
     try:
       config = ConfigParser.RawConfigParser()
-      config.read('kite.cfg')
+      config.read("%s/%s" % (os.path.dirname(sys.argv[0]), 'kite.cfg'))
 
       self.host = config.get('Cloudstack', 'host')
       self.port = config.get('Cloudstack', 'port')
@@ -43,7 +43,7 @@ class Kite:
     params['command'] = command
     params['response'] = 'json'
 
-    # Use fakehost to keep path_url to 
+    # Use fakehost to keep path_url to '/?'
     req = requests.Request('GET', 'http://fakehost', params=params);
     prereq = req.prepare()
 
