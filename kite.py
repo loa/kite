@@ -32,12 +32,24 @@ class Kite:
     self.apiurl = "http://%s:%s/client/api" % (self.host, self.port)
 
   def check_jobs(self):
-    for job in self.request('listAsyncJobs', {}):
-      for key in job.keys():
-        print "%s: %s" % (key, job[key])
-      break
+    for job in self.request('listAsyncJobs'):
+      if job['jobstatus'] == 1:
+        cmd = job['cmd']
 
-  def request(self, command, params):
+        # Flatten tree structure
+        job = self.parse_dict(job['jobresult']['virtualmachine'])
+
+        # All values need to be strings
+        for index, value in job.items():
+          job[index] = str(value)
+
+        if cmd == 'com.cloud.api.commands.DestroyVMCmd':
+          self.trigger_hooks('vmdestroy', job)
+
+        if cmd == 'com.cloud.api.commands.CreateVMCmd':
+          self.trigger_hooks('vmcreate', job)
+
+  def request(self, command, params = {}):
     # Set basic params
     params['apikey'] = self.apikey
     params['command'] = command
@@ -64,12 +76,18 @@ class Kite:
     s = requests.Session()
     resp = s.send(prereq)
 
-    # Return json response
-    for key in resp.json()["%sresponse" % command.lower()].keys():
-      if key != 'count':
-        return resp.json()["%sresponse" % command.lower()][key]
+    json = resp.json()["%sresponse" % command.lower()]
 
-    return None
+    if 'errorcode' in json:
+      print "%s: %s" % (json['errorcode'], json['errortext'])
+      sys.exit(1)
+
+    # Return json response
+    for key in json.keys():
+      if key != 'count':
+        return json[key]
+
+    return {}
 
   def trigger_hooks(self, hook, params = {}):
     hooks_dir = "%s/hooks/" % os.path.dirname(__file__)
@@ -80,6 +98,25 @@ class Kite:
 
       # Run hook with job vars as env variables
       subprocess.call([file], env=params, shell=True, executable="/bin/bash")
+
+  def parse_dict(self, init, lkey=''):
+    ret = {}
+    if isinstance(init, dict):
+      for rkey, val in init.items():
+        key = lkey+rkey
+        if isinstance(val, (dict, list)):
+          ret.update(self.parse_dict(val, key+'_'))
+        else:
+          ret[key] = val
+    else:
+      for index, val in enumerate(init):
+        key = lkey+str(index)
+        if isinstance(val, (dict, list)):
+          ret.update(self.parse_dict(val, key+'_'))
+        else:
+          ret[key] = val
+
+    return ret
 
 if __name__ == "__main__":
   Kite()
