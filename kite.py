@@ -75,8 +75,8 @@ class Kite:
         if job['cmd'] == 'com.cloud.api.commands.DestroyVMCmd':
           self.trigger_hooks('vmdestroy', params)
 
-        if job['cmd'] == 'com.cloud.api.commands.CreateVMCmd':
-          self.trigger_hooks('vmcreate', params)
+        elif job['cmd'] == 'com.cloud.api.commands.DeployVMCmd':
+          self.trigger_hooks('vmdeploy', params)
 
     # Save list of processed jobs
     self.save_jobs(processed_jobs)
