@@ -64,13 +64,8 @@ class Kite:
         continue
 
       if job['jobstatus'] == 1:
-
         # Flatten tree structure
-        params = self.parse_dict(job['jobresult']['virtualmachine'])
-
-        # All values need to be strings when used as environmental vars
-        for index, value in params.items():
-          params[index] = str(value)
+        params = self.parse_dict(job['jobresult'])
 
         if job['cmd'] == 'com.cloud.api.commands.DestroyVMCmd':
           self.trigger_hooks('vmdestroy', params)
@@ -147,6 +142,11 @@ class Kite:
           ret.update(self.parse_dict(val, key+'_'))
         else:
           ret[key] = val
+
+    # All values need to be strings when used as environmental vars
+    if lkey == '':
+      for index, value in ret.items():
+        ret[index] = str(value)
 
     return ret
 
