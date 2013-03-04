@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import ConfigParser, os, sys, subprocess, glob
+import ConfigParser, os, sys, subprocess, glob, json
 import requests, hmac, base64, hashlib
 
 class Kite:
@@ -31,23 +31,55 @@ class Kite:
     # Create url from config settings
     self.apiurl = "http://%s:%s/client/api" % (self.host, self.port)
 
+  def get_jobs(self):
+    # Read the list of processed jobs as a json file from kite directory
+    try:
+      f = open("%s/%s" % (os.path.dirname(sys.argv[0]), 'processed_jobs.json'), 'r')
+      jobs = json.load(f)
+      f.close()
+    except:
+      jobs = []
+
+    return jobs
+
+  def save_jobs(self, jobs):
+    # Save the list of processed jobs as a json file in kite directory
+    f = open("%s/%s" % (os.path.dirname(sys.argv[0]), 'processed_jobs.json'), 'w')
+    json.dump(jobs, f)
+    f.close()
+
   def check_jobs(self):
+    # Get list of all jobs that already been processed
+    prev_processed_jobs = self.get_jobs()
+
+    # New list of all jobs that still appears from api and new processed ones
+    processed_jobs = []
+
     for job in self.request('listAsyncJobs'):
+      # Add job to new processed list
+      processed_jobs.append(job['jobid'])
+
+      # Skip job if it's already been processed in previous run
+      if job['jobid'] in prev_processed_jobs:
+        continue
+
       if job['jobstatus'] == 1:
-        cmd = job['cmd']
 
         # Flatten tree structure
-        job = self.parse_dict(job['jobresult']['virtualmachine'])
+        params = self.parse_dict(job['jobresult']['virtualmachine'])
 
-        # All values need to be strings
-        for index, value in job.items():
-          job[index] = str(value)
+        # All values need to be strings when used as environmental vars
+        for index, value in params.items():
+          params[index] = str(value)
 
-        if cmd == 'com.cloud.api.commands.DestroyVMCmd':
-          self.trigger_hooks('vmdestroy', job)
+        if job['cmd'] == 'com.cloud.api.commands.DestroyVMCmd':
+          self.trigger_hooks('vmdestroy', params)
 
-        if cmd == 'com.cloud.api.commands.CreateVMCmd':
-          self.trigger_hooks('vmcreate', job)
+        if job['cmd'] == 'com.cloud.api.commands.CreateVMCmd':
+          self.trigger_hooks('vmcreate', params)
+
+    # Save list of processed jobs
+    self.save_jobs(processed_jobs)
 
   def request(self, command, params = {}):
     # Set basic params
