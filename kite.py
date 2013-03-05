@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Author: Carl Loa Odin <carlodin@gmail.com>
 
 import ConfigParser, os, sys, subprocess, glob, json
 import requests, hmac, base64, hashlib
@@ -125,10 +126,12 @@ class Kite:
 
     # Get all files with current hook as a prefix from the hook directory
     for file in glob.glob("%s%s-*" % (hooks_dir, hook)):
-      print "Trigger: %s" % file
+      # Make sure file is executable
+      if os.access(file, os.X_OK):
+        print "Trigger: %s" % file
 
-      # Run hook with job vars as env variables
-      subprocess.call([file], env=params, shell=True, executable="/bin/bash")
+        # Run hook with job vars as env variables
+        subprocess.call([file], env=params, shell=True, executable="/bin/bash")
 
   def parse_dict(self, init, lkey=''):
     ret = {}
