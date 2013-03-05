@@ -117,7 +117,11 @@ class Kite:
     return {}
 
   def trigger_hooks(self, hook, params = {}):
+    # Get all hooks that we are going to execute
     hooks_dir = "%s/hooks/" % os.path.dirname(__file__)
+
+    # Add environmental variables that kite is run in
+    params = dict(dict(os.environ).items() + params.items())
 
     # Get all files with current hook as a prefix from the hook directory
     for file in glob.glob("%s%s-*" % (hooks_dir, hook)):
