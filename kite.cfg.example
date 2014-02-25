@@ -1,5 +1,15 @@
+[Kite]
+use_hooks=True
+use_stomp=True
+
 [Cloudstack]
 host=cloudstack.internal.machines
 port=8080
 apikey=123QWEASD
 secretkey=123QWEASD
+
+[Stomp]
+uri=tcp://localhost:61613
+login=guest
+passcode=guest
+queue=/queue/Cloudstack
