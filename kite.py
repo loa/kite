@@ -3,8 +3,11 @@
 
 import ConfigParser, os, sys, subprocess, glob, json
 import requests, hmac, base64, hashlib
-from stompest.config import StompConfig
-from stompest.sync import Stomp
+import pika
+import logging
+
+logging.basicConfig()
+logging.getLogger('pika').setLevel(logging.ERROR)
 
 class Kite:
   use_hooks = False
@@ -16,10 +19,10 @@ class Kite:
   cloudstack_secretkey = None
   cloudstack_apiurl    = None
 
-  stomp_uri      = None
-  stomp_login    = None
-  stomp_passcode = None
-  stomp_queue    = None
+  amqp_hostname = None
+  amqp_login    = None
+  amqp_passcode = None
+  amqp_exchange = None
 
   def __init__(self):
     self.read_config()
@@ -31,17 +34,17 @@ class Kite:
       config.read("%s/%s" % (os.path.dirname(sys.argv[0]), 'kite.cfg'))
 
       self.use_hooks = config.get('Kite', 'use_hooks')
-      self.use_stomp = config.get('Kite', 'use_stomp')
+      self.use_amqp = config.get('Kite', 'use_amqp')
 
       self.cloudstack_host      = config.get('Cloudstack', 'host')
       self.cloudstack_port      = config.get('Cloudstack', 'port')
       self.cloudstack_apikey    = config.get('Cloudstack', 'apikey')
       self.cloudstack_secretkey = config.get('Cloudstack', 'secretkey')
 
-      self.stomp_uri      = config.get('Stomp', 'uri')
-      self.stomp_login    = config.get('Stomp', 'login')
-      self.stomp_passcode = config.get('Stomp', 'passcode')
-      self.stomp_queue    = config.get('Stomp', 'queue')
+      self.amqp_hostname = config.get('Amqp', 'hostname')
+      self.amqp_login    = config.get('Amqp', 'login')
+      self.amqp_passcode = config.get('Amqp', 'passcode')
+      self.amqp_exchange = config.get('Amqp', 'exchange')
 
     except Exception as e:
       print "Error in kite.cfg"
@@ -75,10 +78,10 @@ class Kite:
     # New list of all jobs that still appears from api and new processed ones
     processed_jobs = []
 
-    if self.use_stomp:
-      stomp_config = StompConfig(self.stomp_uri, login=self.stomp_login, passcode=self.stomp_passcode)
-      stomp_client = Stomp(stomp_config)
-      stomp_client.connect()
+    if self.use_amqp:
+      connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.amqp_hostname))
+      channel = connection.channel()
+      channel.exchange_declare(exchange=self.amqp_exchange, type='fanout')
 
     for job in self.request('listAsyncJobs'):
       # Add job to new processed list
@@ -99,13 +102,13 @@ class Kite:
           elif job['cmd'] == 'com.cloud.api.commands.DeployVMCmd':
             self.trigger_hooks('vmdeploy', params)
 
-      if self.use_stomp:
-        print "Stomp: %s" % params['jobid']
-        stomp_client.send(self.stomp_queue, job)
+      if self.use_amqp:
+        print "Amqp: %s" % params['jobid']
+        job_plain = str(job)
+        channel.basic_publish(exchange=self.amqp_exchange, routing_key='', body=job_plain)
 
-    if self.use_stomp:
-      stomp_client.disconnect()
-
+    if self.use_amqp:
+      connection.close()
 
     # Save list of processed jobs
     self.save_jobs(processed_jobs)

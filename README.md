@@ -1,7 +1,7 @@
 kite
 ====
 
-Trigger hooks and push Stomp messages on Cloudstack asyncjobs.
+Trigger hooks and push amqp messages on Cloudstack asyncjobs.
 
 ![cloud](http://speckycdn.sdm.netdna-cdn.com/wp-content/uploads/2011/10/kite-loves-cloud.jpg)
 
