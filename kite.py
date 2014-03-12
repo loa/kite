@@ -84,6 +84,10 @@ class Kite:
       channel.exchange_declare(exchange=self.amqp_exchange, type='fanout')
 
     for job in self.request('listAsyncJobs'):
+      # Skip pending jobs
+      if job['jobstatus'] == 0:
+        continue
+
       # Add job to new processed list
       processed_jobs.append(job['jobid'])
 
@@ -103,7 +107,7 @@ class Kite:
             self.trigger_hooks('vmdeploy', params)
 
       if self.use_amqp:
-        print "Amqp: %s" % params['jobid']
+        print "Amqp: %s" % job['jobid']
         job_plain = str(job)
         channel.basic_publish(exchange=self.amqp_exchange, routing_key='', body=job_plain)
 
