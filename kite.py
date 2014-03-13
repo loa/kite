@@ -118,7 +118,7 @@ class Kite:
 
       if self.use_amqp:
         print "Amqp: %s" % job['jobid']
-        job_plain = str(job)
+        job_plain = str(json.dumps(job))
         channel.basic_publish(exchange=self.amqp_exchange, routing_key='', body=job_plain)
 
     if self.use_amqp:
