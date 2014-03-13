@@ -9,6 +9,16 @@ import logging
 logging.basicConfig()
 logging.getLogger('pika').setLevel(logging.ERROR)
 
+def convert(input):
+    if isinstance(input, dict):
+        return {convert(key): convert(value) for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [convert(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
 class Kite:
   use_hooks = False
   use_stomp = False
@@ -144,7 +154,8 @@ class Kite:
     s = requests.Session()
     resp = s.send(prereq)
 
-    json = resp.json()["%sresponse" % command.lower()]
+    json_unicode = resp.json()["%sresponse" % command.lower()]
+    json = convert(json_unicode)
 
     if 'errorcode' in json:
       print "%s: %s" % (json['errorcode'], json['errortext'])
