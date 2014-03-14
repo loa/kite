@@ -9,6 +9,16 @@ import logging
 logging.basicConfig()
 logging.getLogger('pika').setLevel(logging.ERROR)
 
+def convert(input):
+    if isinstance(input, dict):
+        return {convert(key): convert(value) for key, value in input.iteritems()}
+    elif isinstance(input, list):
+        return [convert(element) for element in input]
+    elif isinstance(input, unicode):
+        return input.encode('utf-8')
+    else:
+        return input
+
 class Kite:
   use_hooks = False
   use_stomp = False
@@ -108,7 +118,7 @@ class Kite:
 
       if self.use_amqp:
         print "Amqp: %s" % job['jobid']
-        job_plain = str(job)
+        job_plain = str(json.dumps(job))
         channel.basic_publish(exchange=self.amqp_exchange, routing_key='', body=job_plain)
 
     if self.use_amqp:
@@ -144,7 +154,8 @@ class Kite:
     s = requests.Session()
     resp = s.send(prereq)
 
-    json = resp.json()["%sresponse" % command.lower()]
+    json_unicode = resp.json()["%sresponse" % command.lower()]
+    json = convert(json_unicode)
 
     if 'errorcode' in json:
       print "%s: %s" % (json['errorcode'], json['errortext'])
