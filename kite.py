@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-# Author: Carl Loa Odin <carlodin@gmail.com>
+#!/usr/bin/python2.7
+# Authors: Carl Loa Odin <carlodin@gmail.com>
+#          Martin Wilhelm <martin@system4.org>
 
 import ConfigParser, os, sys, subprocess, glob, json
 import requests, hmac, base64, hashlib
@@ -27,6 +28,9 @@ class Kite:
   cloudstack_port      = None
   cloudstack_apikey    = None
   cloudstack_secretkey = None
+  cloudstack_urlpath   = None
+  cloudstack_scheme    = None
+
   cloudstack_apiurl    = None
 
   amqp_hostname = None
@@ -50,6 +54,8 @@ class Kite:
       self.cloudstack_port      = config.get('Cloudstack', 'port')
       self.cloudstack_apikey    = config.get('Cloudstack', 'apikey')
       self.cloudstack_secretkey = config.get('Cloudstack', 'secretkey')
+      self.cloudstack_urlpath   = config.get('Cloudstack', 'urlpath')
+      self.cloudstack_scheme    = config.get('Cloudstack', 'scheme')
 
       self.amqp_hostname = config.get('Amqp', 'hostname')
       self.amqp_login    = config.get('Amqp', 'login')
@@ -62,7 +68,7 @@ class Kite:
       sys.exit(1)
 
     # Create url from config settings
-    self.apiurl = "http://%s:%s/client/api" % (self.cloudstack_host, self.cloudstack_port)
+    self.apiurl = "%s://%s:%s/%s" % (self.cloudstack_scheme, self.cloudstack_host, self.cloudstack_port, self.cloudstack_urlpath)
 
   def get_jobs(self):
     # Read the list of processed jobs as a json file from kite directory
@@ -91,7 +97,7 @@ class Kite:
     if self.use_amqp:
       connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.amqp_hostname))
       channel = connection.channel()
-      channel.exchange_declare(exchange=self.amqp_exchange, type='fanout')
+      channel.exchange_declare(exchange=self.amqp_exchange, type='topic')
 
     for job in self.request('listAsyncJobs'):
       # Skip pending jobs
@@ -152,7 +158,8 @@ class Kite:
 
     # Use request session to send the prepared
     s = requests.Session()
-    resp = s.send(prereq)
+    # HACK verify=False is to ignore SSL cert checks for now ... :(
+    resp = s.send(prereq, verify=False)
 
     json_unicode = resp.json()["%sresponse" % command.lower()]
     json = convert(json_unicode)
